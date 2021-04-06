@@ -8,10 +8,9 @@ ini_set('display_errors', 1);
 
 $autoloader = require dirname(__DIR__) . '/vendor/autoload.php';
 
-$app = App\AppFactory::create($autoloader, [
-    App\Environment::BASE_DIR => dirname(__DIR__),
-]);
-
-$di = $app->getContainer();
-
-App\Customization::initCli();
+App\AppFactory::createCli(
+    $autoloader,
+    [
+        App\Environment::BASE_DIR => dirname(__DIR__),
+    ]
+);

@@ -266,6 +266,12 @@ class StationPlaylist
     protected $media_items;
 
     /**
+     * @ORM\OneToMany(targetEntity="StationPlaylistFolder", mappedBy="playlist", fetch="EXTRA_LAZY")
+     * @var Collection
+     */
+    protected $folders;
+
+    /**
      * @ORM\OneToMany(targetEntity="StationSchedule", mappedBy="playlist")
      * @var Collection
      *
@@ -282,6 +288,7 @@ class StationPlaylist
         $this->station = $station;
 
         $this->media_items = new ArrayCollection();
+        $this->folders = new ArrayCollection();
         $this->schedule_items = new ArrayCollection();
     }
 
@@ -521,16 +528,6 @@ class StationPlaylist
             'title' => $media->getTitle(),
         ];
 
-        if (self::ORDER_SEQUENTIAL !== $this->getOrder()) {
-            shuffle($queue);
-
-            $newQueue = [];
-            foreach ($queue as $row) {
-                $newQueue[$row['id']] = $row;
-            }
-            $queue = $newQueue;
-        }
-
         $this->setQueue($queue);
     }
 
@@ -540,6 +537,14 @@ class StationPlaylist
     public function getMediaItems(): Collection
     {
         return $this->media_items;
+    }
+
+    /**
+     * @return Collection|StationPlaylistFolder[]
+     */
+    public function getFolders(): Collection
+    {
+        return $this->folders;
     }
 
     /**
@@ -647,64 +652,5 @@ class StationPlaylist
         int $play_per_minutes
     ): void {
         $this->play_per_minutes = $play_per_minutes;
-    }
-
-    /**
-     * Export the playlist into a reusable format.
-     *
-     * @param string $file_format
-     * @param bool $absolute_paths
-     * @param bool $with_annotations
-     */
-    public function export(
-        $file_format = 'pls',
-        $absolute_paths = false,
-        $with_annotations = false
-    ): string {
-        if ($absolute_paths) {
-            $mediaStorage = $this->station->getMediaStorageLocation();
-            if (!$mediaStorage->isLocal()) {
-                throw new \RuntimeException('Media is not hosted locally on this system.');
-            }
-
-            $media_path = $mediaStorage->getPath() . '/';
-        } else {
-            $media_path = '';
-        }
-
-        switch ($file_format) {
-            case 'm3u':
-                $playlist_file = [];
-                foreach ($this->media_items as $media_item) {
-                    $media_file = $media_item->getMedia();
-                    $media_file_path = $media_path . $media_file->getPath();
-                    $playlist_file[] = $media_file_path;
-                }
-
-                return implode("\n", $playlist_file);
-
-            case 'pls':
-            default:
-                $playlist_file = [
-                    '[playlist]',
-                ];
-
-                $i = 0;
-                foreach ($this->media_items as $media_item) {
-                    $i++;
-
-                    $media_file = $media_item->getMedia();
-                    $media_file_path = $media_path . $media_file->getPath();
-                    $playlist_file[] = 'File' . $i . '=' . $media_file_path;
-                    $playlist_file[] = 'Title' . $i . '=' . $media_file->getArtist() . ' - ' . $media_file->getTitle();
-                    $playlist_file[] = 'Length' . $i . '=' . $media_file->getLength();
-                    $playlist_file[] = '';
-                }
-
-                $playlist_file[] = 'NumberOfEntries=' . $i;
-                $playlist_file[] = 'Version=2';
-
-                return implode("\n", $playlist_file);
-        }
     }
 }

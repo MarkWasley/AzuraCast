@@ -5,17 +5,10 @@ ini_set('display_errors', 1);
 
 $autoloader = require dirname(__DIR__) . '/vendor/autoload.php';
 
-$app = App\AppFactory::create(
+$cli = App\AppFactory::createCli(
         $autoloader,
         [
                 App\Environment::BASE_DIR => dirname(__DIR__),
         ]
 );
-
-$di = $app->getContainer();
-
-App\Customization::initCli();
-
-/** @var App\Console\Application $cli */
-$cli = $di->get(App\Console\Application::class);
 $cli->run();

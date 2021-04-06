@@ -1,6 +1,4 @@
-#
 # Base install step (done first for caching purposes).
-#
 FROM ubuntu:focal as base
 
 ENV TZ="UTC"
@@ -14,12 +12,6 @@ RUN chmod a+x /bd_build/*.sh \
     && /bd_build/setup.sh \
     && /bd_build/cleanup.sh \
     && rm -rf /bd_build
-
-# Install SFTPgo
-COPY --from=azuracast/azuracast_golang_deps:latest /usr/local/bin/sftpgo /usr/local/bin/sftpgo
-
-# Install Dockerize
-COPY --from=azuracast/azuracast_golang_deps:latest /usr/local/bin/dockerize /usr/local/bin/dockerize
 
 #
 # START Operations as `azuracast` user
@@ -54,7 +46,8 @@ ENV VIRTUAL_HOST="azuracast.local" \
     HTTPS_METHOD="noredirect"
 
 # Sensible default environment variables.
-ENV APPLICATION_ENV="production" \
+ENV LANG="en_US.UTF-8" \
+    APPLICATION_ENV="production" \
     ENABLE_ADVANCED_FEATURES="false" \
     MYSQL_HOST="mariadb" \
     MYSQL_PORT=3306 \

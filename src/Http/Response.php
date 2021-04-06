@@ -2,7 +2,11 @@
 
 namespace App\Http;
 
+use Azura\Files\ExtendedFilesystemInterface;
+use Azura\Files\FilesystemInterface;
+use League\MimeTypeDetection\FinfoMimeTypeDetector;
 use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\StreamInterface;
 
 final class Response extends \Slim\Http\Response
 {
@@ -127,5 +131,80 @@ final class Response extends \Slim\Http\Response
         $response->getBody()->write($file_data);
 
         return new static($response, $this->streamFactory);
+    }
+
+    /**
+     * Write a stream to the response as if it is a file for download.
+     *
+     * @param StreamInterface $fileStream
+     * @param string $contentType
+     * @param string|null $fileName
+     *
+     * @return static
+     */
+    public function renderStreamAsFile(
+        StreamInterface $fileStream,
+        string $contentType,
+        ?string $fileName = null
+    ) {
+        set_time_limit(600);
+
+        $response = $this->response
+            ->withHeader('Pragma', 'public')
+            ->withHeader('Expires', '0')
+            ->withHeader('Cache-Control', 'must-revalidate, post-check=0, pre-check=0')
+            ->withHeader('Content-Type', $contentType);
+
+        if ($fileName !== null) {
+            $response = $response->withHeader('Content-Disposition', 'attachment; filename=' . $fileName);
+        }
+
+        $response = $response->withBody($fileStream);
+
+        return new static($response, $this->streamFactory);
+    }
+
+    public function streamFilesystemFile(
+        ExtendedFilesystemInterface $filesystem,
+        string $path,
+        string $fileName = null,
+        string $disposition = 'attachment'
+    ): ResponseInterface {
+        $localPath = $filesystem->getLocalPath($path);
+
+        $mime = new FinfoMimeTypeDetector();
+        $mimeType = $mime->detectMimeTypeFromFile($localPath);
+
+        $fileName ??= basename($localPath);
+
+        if ('attachment' === $disposition) {
+            /*
+             * The regex used below is to ensure that the $fileName contains only
+             * characters ranging from ASCII 128-255 and ASCII 0-31 and 127 are replaced with an empty string
+             */
+            $disposition .= '; filename="' . preg_replace('/[\x00-\x1F\x7F\"]/', ' ', $fileName) . '"';
+            $disposition .= "; filename*=UTF-8''" . rawurlencode($fileName);
+        }
+
+        $response = $this->withHeader('Content-Disposition', $disposition)
+            ->withHeader('Content-Length', filesize($localPath))
+            ->withHeader('X-Accel-Buffering', 'no');
+
+        // Special internal nginx routes to use X-Accel-Redirect for far more performant file serving.
+        $specialPaths = [
+            '/var/azuracast/backups' => '/internal/backups',
+            '/var/azuracast/stations' => '/internal/stations',
+        ];
+
+        foreach ($specialPaths as $diskPath => $nginxPath) {
+            if (0 === strpos($localPath, $diskPath)) {
+                $accelPath = str_replace($diskPath, $nginxPath, $localPath);
+
+                return $response->withHeader('Content-Type', $mimeType)
+                    ->withHeader('X-Accel-Redirect', $accelPath);
+            }
+        }
+
+        return $response->withFile($localPath, $mimeType);
     }
 }

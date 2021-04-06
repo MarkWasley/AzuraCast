@@ -19,7 +19,7 @@ on :
 
 jobs :
   build :
-    name : Build, Test and Publish
+    name : Build and Test
     runs-on : ubuntu-latest
     steps :
       - uses : actions/checkout@master
@@ -28,32 +28,16 @@ jobs :
         run : |
           git gc --prune=now --aggressive
 
-      - name : Set up Docker Buildx
-        uses : docker/setup-buildx-action@v1
-
       - name : Cache PHP dependencies
         uses : actions/cache@v2
         with :
           path : vendor
           key : ${{ runner.OS }}-build-${{ hashFiles('**/composer.lock') }}
 
-      - name : Cache Docker layers
-        uses : actions/cache@v2
-        with :
-          path : /tmp/.buildx-cache
-          key : ${{ runner.os }}-buildx-${{ github.sha }}
-          restore-keys : |
-            ${{ runner.os }}-buildx-
-
-      - name : Login to DockerHub
-        uses : docker/login-action@v1
-        with :
-          username : ${{ secrets.DOCKER_USERNAME }}
-          password : ${{ secrets.DOCKER_PASSWORD }}
-
       - name : Set console permissions and clear static assets.
         run : |
           rm -rf web/static/dist
+          rm -rf web/static/webpack.json
           rm -rf web/static/assets.json
           chmod a+x bin/console
 
@@ -87,26 +71,22 @@ jobs :
       - name : Import locales, build static assets.
         uses : ./.github/actions/build
 
-      - name : Build Docker Image for Local Testing
-        uses : docker/build-push-action@v2
-        with :
-          tags : azuracast/azuracast_web_v2:latest
-          cache-from : type=local,src=/tmp/.buildx-cache
-          cache-to : type=local,dest=/tmp/.buildx-cache
-          load : true
-
       - name : Set up functional test environment.
         run : |
+          cp sample.env .env
           cp azuracast.sample.env azuracast.env
           cp docker-compose.sample.yml docker-compose.yml
-          cp docker-compose.testing.yml docker-compose.override.yml
+          docker-compose pull web
 
+          cp docker-compose.testing.yml docker-compose.override.yml
           docker-compose build web
+
           docker-compose run --rm --user="azuracast" web azuracast_install
 
       - name : Run functional test suite.
         run : |
           chmod 777 tests/_output/
+          chmod 777 tests/_support/_generated
           docker-compose run --rm --user="azuracast" web composer dev-test
 
       - name : Stop all running containers.
@@ -118,8 +98,51 @@ jobs :
         run : |
           cat tests/_output/*
 
+      - name : Upload built static assets and translations
+        uses : actions/upload-artifact@v2
+        with :
+          name : assets
+          if-no-files-found : error
+          path : |
+            resources/locale/compiled
+            resources/locale/translations.json
+            web/static/dist
+            web/static/webpack.json
+            web/static/assets.json
+
+  publish :
+    name : Publish
+    needs : build
+    runs-on : ubuntu-latest
+    if : github.event_name == 'push' || github.event_name == 'schedule'
+    steps :
+      - uses : actions/checkout@master
+
+      - name : Download built static assets from previous step
+        uses : actions/download-artifact@v2
+        with :
+          name : assets
+
+      # - name : Set up QEMU
+      #  uses : docker/setup-qemu-action@v1
+
+      - name : Set up Docker Buildx
+        uses : docker/setup-buildx-action@v1
+
+      - name : Login to DockerHub
+        uses : docker/login-action@v1
+        with :
+          username : ${{ secrets.DOCKERHUB_USERNAME }}
+          password : ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name : Login to GitHub Container Registry
+        uses : docker/login-action@v1
+        with :
+          registry : ghcr.io
+          username : ${{ github.repository_owner }}
+          password : ${{ secrets.GITHUB_TOKEN }}
+
       - name : Determine Tag Name
-        if : github.event_name == 'push' || github.event_name == 'schedule'
         id : tag
         run : |
           BRANCH_NAME=${GITHUB_REF#refs/heads/}
@@ -130,10 +153,12 @@ jobs :
           echo "::set-output name=TAG::${BRANCH_NAME}"
 
       - name : Publish to Docker Hub
-        if : github.event_name == 'push' || github.event_name == 'schedule'
         uses : docker/build-push-action@v2
         with :
+          context : .
+          # platforms : linux/amd64,linux/arm64
+          cache-from : type=registry,ref=azuracast/azuracast_web_v2:${{ steps.tag.outputs.TAG }}
           push : true
-          tags : azuracast/azuracast_web_v2:${{ steps.tag.outputs.TAG }}
-          cache-from : type=local,src=/tmp/.buildx-cache
-          cache-to : type=local,dest=/tmp/.buildx-cache
+          tags : |
+            azuracast/azuracast_web_v2:${{ steps.tag.outputs.TAG }}
+            ghcr.io/azuracast/web:${{ steps.tag.outputs.TAG }}

@@ -5,10 +5,108 @@ release channel, you can take advantage of these new features and fixes.
 
 ## New Features/Changes
 
+- A new "Embed Widgets" modal has been added to the station profile that will let you customize your embeddable widgets
+  and show you a preview of their rendered status.
+
+- You can now embed playback history as a standalone component in your web site.
+
+- By default, avatars will be served from the free and open-source [Libravatar](https://libravatar.org) service. You can
+  configure the external avatar service from the system settings, along with the default avatar URL.
+
+- The "Average Listeners" and "Unique Listeners" charts on the dashboard are now "zoomed in" to show the last 30 days;
+  if you want to view older data, simply click and drag the chart to view older data.
+
+- The SoundExchange report will once again automatically retrieve the ISRCs for tracks with no ISRC assigned (now using
+  the open MusicBrainz API database).
+
+## Code Quality/Technical Changes
+
+- In preparation to support PHP 8.0, we have updated to version 2.0 of the Flysystem filesystem abstraction library.
+
+- We've switched from the `material-icons` library to the `@material-icons/font` library. In particular, we are using
+  the "two-toned" version of the Material Design icons across the application.
+
+- Instances of the "Pause" icon across the system have been replaced with the "Stop" icon to more properly indicate what
+  they do.
+
+## Bug Fixes
+
+- Fixed a minor bug with the `is_now` parameter on the Schedule API endpoint.
+
+- Fixed a number of bugs relating to how the AutoDJ queue is built.
+
+- Fixed bugs relating to playlist folder auto-assignment.
+
+- When saving changes to a file that does not use ID3 metadata, users will no longer encounter a processing error
+  (#3798).
+
+---
+
+# AzuraCast 0.12.2 (Mar 9, 2021)
+
+## New Features/Changes
+
+- **E-mail Delivery**: System administrators can now configure SMTP for e-mail delivery via the system settings page. If
+  SMTP is enabled for your installation, the following functionality is added:
+
+    - **Self-Service Password Reset**: Users can request a password recovery token to reset their own passwords.
+
+    - **E-mail Web Hook**: You can dispatch an e-mail to specified recipients as a web hook when specific triggers
+      occur.
+
+- Web Hooks can now be triggered to dispatch when a station goes offline or comes online.
+
+- You can now generate listener reports for specific time periods instead of just day ranges.
+
+- For sequential or shuffled playlists, you can now view the internal queue that the AzuraCast AutoDJ uses to track its
+  song playback order from the "More" dropdown next to the playlist.
+
+## Code Quality/Technical Changes
+
+- We have removed the "?12345678" cache-busting timestamp query strings appended to the end of stream URLs. These have
+  caused a fair amount of confusion over the years, and with our modern playback controls (and with modern browsers)
+  it's far less necessary than it used to be.
+
+- Logging has been improved for critical errors (i.e. "out of memory" or "execution time exceeded").
+
+- We have improved the visibility and usability of our password strength meter where it is used.
+
+- **API Change**: The Now Playing API response now has a boolean "is_online" value to indicate whether we are currently
+  detecting a broadcast from the station.
+
+- Liquidsoap has been updated to version 1.4.4 stable, and the SFTPGo library has been updated to its latest version.
+
+## Bug Fixes
+
+- An issue with some stations crashing shortly after startup has been resolved. This was caused by a safety check we
+  added to the AutoDJ to check that AzuraCast was up and running at the same time; however, this caused issues with
+  stations that don't use the AzuraCast AutoDJ (i.e. stations that stream live or use remote playlists).
+
+- We have identified an issue that would prevent backups from older than a few months ago from restoring correctly; this
+  issue has been resolved, so backups should now restore without any issue regardless of the backup's age.
+
+- Several issues causing slowness in the Listener Report (especially the CSV generation) have been improved, so stations
+  with large listener counts should still be able to take advantage of this report in more scenarios.
+
+- Fixed a bug in the Now Playing adapter that would cause stations to return as offline when using the Icecast adapter
+  with no administrator password set.
+
+- Fixed a bug that prevented metadata from writing back to media files when album art was set.
+
+- A bug preventing the charts on the dashboard from showing or hiding properly has been fixed.
+
+---
+
+# AzuraCast 0.12.1 (Feb 19, 2021)
+
+## New Features/Changes
+
 - In the Now Playing API response, the station's public-facing URL and URLs to download the PLS and M3U playlists for
   the station are included in the response.
 
 ## Code Quality/Technical Changes
+
+- Across all AzuraCast repositories, the `master` branch has been renamed to `main`.
 
 - A new section has been added to the "Edit Liquidsoap Configuration" panel at the very bottom of the configuration,
   after all broadcasts are sent out.
@@ -19,7 +117,14 @@ release channel, you can take advantage of these new features and fixes.
 
 ## Bug Fixes
 
-- The AutoDJ queue timing has been reworked and simplified.
+- Calling `DELETE` on the files API endpoint properly deletes the file itself (#3813).
+
+- An issue with the updated dashboard has been fixed, bringing the dashboard appearance closer to the old visual style
+  but while still being a modern Vue component.
+
+- Changes to the weighted shuffle algorithm were reverted after further evaluation.
+
+- The AutoDJ queue timing has been reworked and simplified and issues have been fixed relating to cue timing.
 
 - Playlist weighting (1-25) now properly weights playlists with 1 being the _least_ frequently played and 25 being the _
   most_ frequently played, as is intended and described in the documentation. (#3735)
@@ -754,7 +859,7 @@ important updates to the software in that time, especially in the fields of reli
   the "Now Playing" API, which is a rich summary of the state of a radio station at the moment. To improve performance
   of more popular stations using our software, we've introduced two new methods of accessing this data: a static JSON
   file and a live Websocket/EventSource-driven plugin. You can read more on our
-  new [Now Playing Data APIs Guide](https://www.azuracast.com/developers/nowplaying.html).
+  new [Now Playing Data APIs Guide](https://docs.azuracast.com/en/developers/apis/now-playing-data).
 
 ## Bug Fixes and Minor Updates
 

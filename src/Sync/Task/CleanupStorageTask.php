@@ -2,27 +2,13 @@
 
 namespace App\Sync\Task;
 
-use App\Doctrine\ReloadableEntityManagerInterface;
 use App\Entity;
-use App\Flysystem\FilesystemManager;
 use DoctrineBatchUtils\BatchProcessing\SimpleBatchIteratorAggregate;
-use Psr\Log\LoggerInterface;
+use League\Flysystem\StorageAttributes;
 use Symfony\Component\Finder\Finder;
 
 class CleanupStorageTask extends AbstractTask
 {
-    protected FilesystemManager $filesystem;
-
-    public function __construct(
-        ReloadableEntityManagerInterface $em,
-        LoggerInterface $logger,
-        FilesystemManager $filesystem
-    ) {
-        parent::__construct($em, $logger);
-
-        $this->filesystem = $filesystem;
-    }
-
     public function run(bool $force = false): void
     {
         $stationsQuery = $this->em->createQuery(
@@ -105,13 +91,26 @@ class CleanupStorageTask extends AbstractTask
         ];
 
         foreach ($cleanupDirs as $key => $dirBase) {
-            $dirContents = $fs->listContents($dirBase, true);
+            try {
+                $dirContents = $fs->listContents($dirBase, true);
 
-            foreach ($dirContents as $row) {
-                if (!isset($allUniqueIds[$row['filename']])) {
-                    $fs->delete($row['path']);
-                    $removed[$key]++;
+                foreach ($dirContents as $row) {
+                    /** @var StorageAttributes $row */
+                    $path = $row->path();
+
+                    $filename = pathinfo($path, PATHINFO_FILENAME);
+                    if (!isset($allUniqueIds[$filename])) {
+                        $fs->delete($path);
+                        $removed[$key]++;
+                    }
                 }
+            } catch (\Exception $e) {
+                $this->logger->error(
+                    sprintf('Filesystem error: %s', $e->getMessage()),
+                    [
+                        'exception' => $e,
+                    ]
+                );
             }
         }
 

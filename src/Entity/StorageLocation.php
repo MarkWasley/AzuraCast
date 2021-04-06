@@ -5,21 +5,22 @@
 namespace App\Entity;
 
 use App\Annotations\AuditLog;
-use App\Flysystem\Filesystem;
 use App\Radio\Quota;
 use App\Validator\Constraints as AppAssert;
 use Aws\S3\S3Client;
+use Azura\Files\Adapter\AwsS3\AwsS3Adapter;
+use Azura\Files\Adapter\Dropbox\DropboxAdapter;
+use Azura\Files\Adapter\ExtendedAdapterInterface;
+use Azura\Files\Adapter\Local\LocalFilesystemAdapter;
+use Azura\Files\Adapter\LocalAdapterInterface;
+use Azura\Files\ExtendedFilesystemInterface;
+use Azura\Files\LocalFilesystem;
+use Azura\Files\RemoteFilesystem;
 use Brick\Math\BigInteger;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
-use League\Flysystem\Adapter\Local;
-use League\Flysystem\AdapterInterface;
-use League\Flysystem\AwsS3v3\AwsS3Adapter;
-use League\Flysystem\Config;
-use League\Flysystem\Util;
 use Spatie\Dropbox\Client;
-use Spatie\FlysystemDropbox\DropboxAdapter;
 use Symfony\Component\Validator\Constraints as Assert;
 
 /**
@@ -391,7 +392,9 @@ class StorageLocation
             }
 
             return $quota;
-        } elseif (null !== $quota) {
+        }
+
+        if (null !== $quota) {
             return $quota;
         }
 
@@ -472,10 +475,10 @@ class StorageLocation
         }
 
         $adapter = $this->getStorageAdapter();
-        $adapter->has('/test');
+        $adapter->fileExists('/test');
     }
 
-    public function getStorageAdapter(): AdapterInterface
+    public function getStorageAdapter(): ExtendedAdapterInterface
     {
         switch ($this->adapter) {
             case self::ADAPTER_S3:
@@ -487,7 +490,7 @@ class StorageLocation
 
             case self::ADAPTER_LOCAL:
             default:
-                return new Local($this->path);
+                return new LocalFilesystemAdapter($this->path);
         }
     }
 
@@ -520,18 +523,13 @@ class StorageLocation
         return new Client($this->dropboxAuthToken);
     }
 
-    /**
-     * @param Config|array|null $config
-     *
-     */
-    public function getFilesystem($config = null): Filesystem
+    public function getFilesystem(): ExtendedFilesystemInterface
     {
-        $config = Util::ensureConfig($config);
-        if (self::ADAPTER_DROPBOX === $this->adapter) {
-            $config->set('case_sensitive', false);
-        }
+        $adapter = $this->getStorageAdapter();
 
-        return new Filesystem($this->getStorageAdapter(), $config);
+        return ($adapter instanceof LocalAdapterInterface)
+            ? new LocalFilesystem($adapter)
+            : new RemoteFilesystem($adapter);
     }
 
     public function __toString(): string

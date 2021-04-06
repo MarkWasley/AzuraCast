@@ -6,6 +6,7 @@ use App\Annotations\AuditLog;
 use App\Customization;
 use App\Entity;
 use App\Event\GetSyncTasks;
+use App\Service\Avatar;
 use App\Traits\AvailableStaticallyTrait;
 use OpenApi\Annotations as OA;
 use Symfony\Component\Validator\Constraints as Assert;
@@ -783,5 +784,165 @@ class Settings
     public function setEnableAdvancedFeatures(bool $enableAdvancedFeatures): void
     {
         $this->enableAdvancedFeatures = $enableAdvancedFeatures;
+    }
+
+    /**
+     * @OA\Property(example="true")
+     * @var bool Enable e-mail delivery across the application.
+     */
+    protected bool $mailEnabled = false;
+
+    public function getMailEnabled(): bool
+    {
+        return $this->mailEnabled;
+    }
+
+    public function setMailEnabled(bool $mailEnabled): void
+    {
+        $this->mailEnabled = $mailEnabled;
+    }
+
+    /**
+     * @OA\Property(example="AzuraCast")
+     * @var string The name of the sender of system e-mails.
+     */
+    protected string $mailSenderName = '';
+
+    public function getMailSenderName(): string
+    {
+        return $this->mailSenderName;
+    }
+
+    public function setMailSenderName(string $mailSenderName): void
+    {
+        $this->mailSenderName = $mailSenderName;
+    }
+
+    /**
+     * @OA\Property(example="example@example.com")
+     * @var string The e-mail address of the sender of system e-mails.
+     */
+    protected string $mailSenderEmail = '';
+
+    public function getMailSenderEmail(): string
+    {
+        return $this->mailSenderEmail;
+    }
+
+    public function setMailSenderEmail(string $mailSenderEmail): void
+    {
+        $this->mailSenderEmail = $mailSenderEmail;
+    }
+
+    /**
+     * @OA\Property(example="smtp.example.com")
+     * @var string The host to send outbound SMTP mail.
+     */
+    protected string $mailSmtpHost = '';
+
+    public function getMailSmtpHost(): string
+    {
+        return $this->mailSmtpHost;
+    }
+
+    public function setMailSmtpHost(string $mailSmtpHost): void
+    {
+        $this->mailSmtpHost = $mailSmtpHost;
+    }
+
+    /**
+     * @OA\Property(example=465)
+     * @var int The port for sending outbound SMTP mail.
+     */
+    protected int $mailSmtpPort = 0;
+
+    public function getMailSmtpPort(): int
+    {
+        return $this->mailSmtpPort;
+    }
+
+    public function setMailSmtpPort(int $mailSmtpPort): void
+    {
+        $this->mailSmtpPort = $mailSmtpPort;
+    }
+
+    /**
+     * @OA\Property(example="username")
+     * @var string The username when connecting to SMTP mail.
+     */
+    protected string $mailSmtpUsername = '';
+
+    public function getMailSmtpUsername(): string
+    {
+        return $this->mailSmtpUsername;
+    }
+
+    public function setMailSmtpUsername(string $mailSmtpUsername): void
+    {
+        $this->mailSmtpUsername = $mailSmtpUsername;
+    }
+
+    /**
+     * @OA\Property(example="password")
+     * @var string The password when connecting to SMTP mail.
+     */
+    protected string $mailSmtpPassword = '';
+
+    public function getMailSmtpPassword(): string
+    {
+        return $this->mailSmtpPassword;
+    }
+
+    public function setMailSmtpPassword(string $mailSmtpPassword): void
+    {
+        $this->mailSmtpPassword = $mailSmtpPassword;
+    }
+
+    /**
+     * @OA\Property(example="true")
+     * @var bool Whether to use a secure (TLS) connection when sending SMTP mail.
+     */
+    protected bool $mailSmtpSecure = true;
+
+    public function getMailSmtpSecure(): bool
+    {
+        return $this->mailSmtpSecure;
+    }
+
+    public function setMailSmtpSecure(bool $mailSmtpSecure): void
+    {
+        $this->mailSmtpSecure = $mailSmtpSecure;
+    }
+
+    /**
+     * @OA\Property(example="libravatar")
+     * @var string The external avatar service to use when fetching avatars.
+     */
+    protected ?string $avatarService = null;
+
+    public function getAvatarService(): string
+    {
+        return $this->avatarService ?? Avatar::DEFAULT_SERVICE;
+    }
+
+    public function setAvatarService(?string $avatarService): void
+    {
+        $this->avatarService = $avatarService;
+    }
+
+    /**
+     * @OA\Property(example="")
+     * @var string The default avatar URL.
+     */
+    protected ?string $avatarDefaultUrl = null;
+
+    public function getAvatarDefaultUrl(): string
+    {
+        return $this->avatarDefaultUrl ?? Avatar::DEFAULT_AVATAR;
+    }
+
+    public function setAvatarDefaultUrl(?string $avatarDefaultUrl): void
+    {
+        $this->avatarDefaultUrl = $avatarDefaultUrl;
     }
 }

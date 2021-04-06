@@ -231,11 +231,10 @@ class NowPlayingTask extends AbstractTask implements EventSubscriberInterface
                     return;
                 }
 
-                $sq = $this->queueRepo->getUpcomingFromSong($station, $media);
+                $sq = $this->queueRepo->findRecentlyCuedSong($station, $media);
 
                 if (!$sq instanceof Entity\StationQueue) {
-                    $sq = new Entity\StationQueue($station, $media);
-                    $sq->setTimestampCued(time());
+                    $sq = Entity\StationQueue::fromMedia($station, $media);
                 } elseif (null === $sq->getMedia()) {
                     $sq->setMedia($media);
                 }
@@ -339,6 +338,12 @@ class NowPlayingTask extends AbstractTask implements EventSubscriberInterface
                 $triggers[] = Entity\StationWebhook::TRIGGER_LIVE_CONNECT;
             } elseif ($npOld->live->is_live === true && $np->live->is_live === false) {
                 $triggers[] = Entity\StationWebhook::TRIGGER_LIVE_DISCONNECT;
+            }
+
+            if ($npOld->is_online && !$np->is_online) {
+                $triggers[] = Entity\StationWebhook::TRIGGER_STATION_OFFLINE;
+            } elseif (!$npOld->is_online && $np->is_online) {
+                $triggers[] = Entity\StationWebhook::TRIGGER_STATION_ONLINE;
             }
         }
 
