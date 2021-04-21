@@ -46,64 +46,83 @@ class ListenerRepository extends Repository
      * @param Entity\Station $station
      * @param Client[] $clients
      */
-    public function update(Entity\Station $station, $clients): void
+    public function update(Entity\Station $station, array $clients): void
     {
-        $existingClientsRaw = $this->em->createQuery(
-            <<<'DQL'
-                SELECT l.id, l.listener_uid, l.listener_hash
-                FROM App\Entity\Listener l
-                WHERE l.station = :station
-                AND l.timestamp_end = 0
-            DQL
-        )->setParameter('station', $station)
-            ->getArrayResult();
+        $this->em->transactional(
+            function () use ($station, $clients): void {
+                $existingClientsRaw = $this->em->createQuery(
+                    <<<'DQL'
+                        SELECT l.id, l.listener_uid, l.listener_hash
+                        FROM App\Entity\Listener l
+                        WHERE l.station = :station
+                        AND l.timestamp_end = 0
+                    DQL
+                )->setParameter('station', $station);
 
-        $existingClients = [];
-        foreach ($existingClientsRaw as $client) {
-            $identifier = $client['listener_uid'] . '_' . $client['listener_hash'];
-            $existingClients[$identifier] = $client['id'];
-        }
+                $existingClientsIterator = $existingClientsRaw->toIterable([], $existingClientsRaw::HYDRATE_ARRAY);
+                $existingClients = [];
+                foreach ($existingClientsIterator as $client) {
+                    $identifier = $client['listener_uid'] . '_' . $client['listener_hash'];
+                    $existingClients[$identifier] = $client['id'];
+                }
 
-        foreach ($clients as $client) {
-            $listenerHash = Entity\Listener::calculateListenerHash($client);
-            $identifier = $client->uid . '_' . $listenerHash;
+                $listenerMeta = $this->em->getClassMetadata(Entity\Listener::class);
+                $listenerTable = $listenerMeta->getTableName();
 
-            // Check for an existing record for this client.
-            if (isset($existingClients[$identifier])) {
-                unset($existingClients[$identifier]);
-            } else {
-                // Create a new record.
-                $record = new Entity\Listener($station, $client);
+                $conn = $this->em->getConnection();
 
-                if (!empty($client->mount)) {
-                    [$mountType, $mountId] = explode('_', $client->mount, 2);
+                foreach ($clients as $client) {
+                    $listenerHash = Entity\Listener::calculateListenerHash($client);
+                    $identifier = $client->uid . '_' . $listenerHash;
 
-                    if ('local' === $mountType) {
-                        $record->setMount($this->em->getReference(Entity\StationMount::class, (int)$mountId));
-                    } elseif ('remote' === $mountType) {
-                        $record->setRemote($this->em->getReference(Entity\StationRemote::class, (int)$mountId));
+                    // Check for an existing record for this client.
+                    if (isset($existingClients[$identifier])) {
+                        unset($existingClients[$identifier]);
+                    } else {
+                        // Create a new record.
+                        $record = [
+                            'station_id' => $station->getId(),
+                            'timestamp_start' => time(),
+                            'timestamp_end' => 0,
+                            'listener_uid' => (int)$client->uid,
+                            'listener_user_agent' => mb_substr(
+                                $client->userAgent ?? '',
+                                0,
+                                255,
+                                'UTF-8'
+                            ),
+                            'listener_ip' => $client->ip,
+                            'listener_hash' => Entity\Listener::calculateListenerHash($client),
+                        ];
+
+                        if (!empty($client->mount)) {
+                            [$mountType, $mountId] = explode('_', $client->mount, 2);
+
+                            if ('local' === $mountType) {
+                                $record['mount_id'] = (int)$mountId;
+                            } elseif ('remote' === $mountType) {
+                                $record['remote_id'] = (int)$mountId;
+                            }
+                        }
+
+                        $conn->insert($listenerTable, $record);
                     }
                 }
 
-
-                $this->em->persist($record);
+                // Mark the end of all other clients on this station.
+                if (!empty($existingClients)) {
+                    $this->em->createQuery(
+                        <<<'DQL'
+                            UPDATE App\Entity\Listener l
+                            SET l.timestamp_end = :time
+                            WHERE l.id IN (:ids)
+                        DQL
+                    )->setParameter('time', time())
+                        ->setParameter('ids', array_values($existingClients))
+                        ->execute();
+                }
             }
-        }
-
-        $this->em->flush();
-
-        // Mark the end of all other clients on this station.
-        if (!empty($existingClients)) {
-            $this->em->createQuery(
-                <<<'DQL'
-                    UPDATE App\Entity\Listener l
-                    SET l.timestamp_end = :time
-                    WHERE l.id IN (:ids)
-                DQL
-            )->setParameter('time', time())
-                ->setParameter('ids', array_values($existingClients))
-                ->execute();
-        }
+        );
     }
 
     public function clearAll(): void

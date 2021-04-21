@@ -460,22 +460,6 @@ class StationMedia implements SongInterface, ProcessableMediaInterface, PathAwar
         $this->art_updated_at = $art_updated_at;
     }
 
-    public function getItemForPlaylist(StationPlaylist $playlist): ?StationPlaylistMedia
-    {
-        $item = $this->playlists->filter(
-            function ($spm) use ($playlist) {
-                /** @var StationPlaylistMedia $spm */
-                return $spm->getPlaylist()->getId() === $playlist->getId();
-            }
-        );
-
-        $firstItem = $item->first();
-
-        return ($firstItem instanceof StationPlaylistMedia)
-            ? $firstItem
-            : null;
-    }
-
     public function getCustomFields(): Collection
     {
         return $this->custom_fields;
@@ -486,9 +470,9 @@ class StationMedia implements SongInterface, ProcessableMediaInterface, PathAwar
         $this->custom_fields = $custom_fields;
     }
 
-    public function needsReprocessing(int $currentFileModifiedTime = 0): bool
+    public static function needsReprocessing(int $fileModifiedTime = 0, int $dbModifiedTime = 0): bool
     {
-        return $currentFileModifiedTime > $this->mtime;
+        return $fileModifiedTime > $dbModifiedTime;
     }
 
     /**

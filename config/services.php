@@ -151,13 +151,14 @@ return [
         ContainerInterface $di
     ) {
         if ($environment->isTesting()) {
-            $adapter = new Symfony\Component\Cache\Adapter\ArrayAdapter();
-        } else {
-            $adapter = new Symfony\Component\Cache\Adapter\RedisAdapter($di->get(Redis::class));
+            $arrayAdapter = new Symfony\Component\Cache\Adapter\ArrayAdapter();
+            $arrayAdapter->setLogger($logger);
+            return $arrayAdapter;
         }
 
-        $adapter->setLogger($logger);
-        return $adapter;
+        $redisAdapter = new Symfony\Component\Cache\Adapter\RedisAdapter($di->get(Redis::class));
+        $redisAdapter->setLogger($logger);
+        return $redisAdapter;
     },
 
     Psr\Cache\CacheItemPoolInterface::class => DI\get(
@@ -460,11 +461,11 @@ return [
     },
 
     // NowPlaying Adapter factory
-    NowPlaying\Adapter\AdapterFactory::class => function (
+    NowPlaying\AdapterFactory::class => function (
         GuzzleHttp\Client $httpClient,
         Psr\Log\LoggerInterface $logger
     ) {
-        return new NowPlaying\Adapter\AdapterFactory(
+        return new NowPlaying\AdapterFactory(
             new Http\Factory\Guzzle\UriFactory,
             new Http\Factory\Guzzle\RequestFactory,
             $httpClient,
