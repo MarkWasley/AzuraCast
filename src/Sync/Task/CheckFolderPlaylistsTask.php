@@ -7,25 +7,17 @@ use App\Entity;
 use App\Flysystem\StationFilesystems;
 use Azura\Files\ExtendedFilesystemInterface;
 use Doctrine\ORM\Query;
-use League\Flysystem\UnableToRetrieveMetadata;
 use Psr\Log\LoggerInterface;
 
 class CheckFolderPlaylistsTask extends AbstractTask
 {
-    protected Entity\Repository\StationPlaylistFolderRepository $folderRepo;
-
-    protected Entity\Repository\StationPlaylistMediaRepository $spmRepo;
-
     public function __construct(
+        protected Entity\Repository\StationPlaylistMediaRepository $spmRepo,
+        protected Entity\Repository\StationPlaylistFolderRepository $folderRepo,
         ReloadableEntityManagerInterface $em,
         LoggerInterface $logger,
-        Entity\Repository\StationPlaylistMediaRepository $spmRepo,
-        Entity\Repository\StationPlaylistFolderRepository $folderRepo
     ) {
         parent::__construct($em, $logger);
-
-        $this->spmRepo = $spmRepo;
-        $this->folderRepo = $folderRepo;
     }
 
     public function run(bool $force = false): void
@@ -104,9 +96,7 @@ class CheckFolderPlaylistsTask extends AbstractTask
             $path = $folder->getPath();
 
             // Verify the folder still exists.
-            try {
-                $fsMedia->isDir($path);
-            } catch (UnableToRetrieveMetadata $exception) {
+            if (!$fsMedia->isDir($path)) {
                 $this->em->remove($folder);
                 continue;
             }
@@ -120,10 +110,13 @@ class CheckFolderPlaylistsTask extends AbstractTask
 
                 if (!isset($mediaInPlaylist[$mediaId])) {
                     $media = $this->em->find(Entity\StationMedia::class, $mediaId);
-                    $this->spmRepo->addMediaToPlaylist($media, $playlist);
 
-                    $mediaInPlaylist[$mediaId] = $mediaId;
-                    $addedRecords++;
+                    if ($media instanceof Entity\StationMedia) {
+                        $this->spmRepo->addMediaToPlaylist($media, $playlist);
+
+                        $mediaInPlaylist[$mediaId] = $mediaId;
+                        $addedRecords++;
+                    }
                 }
             }
 

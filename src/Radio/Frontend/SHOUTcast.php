@@ -4,7 +4,6 @@ namespace App\Radio\Frontend;
 
 use App\Entity;
 use Exception;
-use NowPlaying\Adapter\AdapterFactory;
 use NowPlaying\Result\Result;
 use Psr\Http\Message\UriInterface;
 use Symfony\Component\Process\Process;
@@ -87,7 +86,7 @@ class SHOUTcast extends AbstractFrontend
             }
 
             $mount->setListenersTotal($result->listeners->total);
-            $mount->setListenersUnique($result->listeners->unique);
+            $mount->setListenersUnique($result->listeners->unique ?? 0);
             $this->em->persist($mount);
 
             if ($mount->getIsDefault()) {

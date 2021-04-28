@@ -13,28 +13,13 @@ use NowPlaying\Result\Result;
 
 abstract class AbstractRemote
 {
-    protected EntityManagerInterface $em;
-
-    protected Entity\Settings $settings;
-
-    protected Client $http_client;
-
-    protected Logger $logger;
-
-    protected AdapterFactory $adapterFactory;
-
     public function __construct(
-        EntityManagerInterface $em,
-        Entity\Repository\SettingsRepository $settingsRepo,
-        Client $http_client,
-        Logger $logger,
-        AdapterFactory $adapterFactory
+        protected EntityManagerInterface $em,
+        protected Entity\Repository\SettingsRepository $settingsRepo,
+        protected Client $http_client,
+        protected Logger $logger,
+        protected AdapterFactory $adapterFactory
     ) {
-        $this->em = $em;
-        $this->settings = $settingsRepo->readSettings();
-        $this->http_client = $http_client;
-        $this->logger = $logger;
-        $this->adapterFactory = $adapterFactory;
     }
 
     /**
@@ -75,7 +60,7 @@ abstract class AbstractRemote
         $this->logger->debug('NowPlaying adapter response', ['response' => $result]);
 
         $remote->setListenersTotal($result->listeners->total);
-        $remote->setListenersUnique($result->listeners->unique);
+        $remote->setListenersUnique($result->listeners->unique ?? 0);
         $this->em->persist($remote);
         $this->em->flush();
 

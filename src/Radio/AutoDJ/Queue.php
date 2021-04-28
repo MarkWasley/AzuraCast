@@ -24,41 +24,16 @@ class Queue implements EventSubscriberInterface
         Entity\StationPlaylist::TYPE_DEFAULT . '_unscheduled',
     ];
 
-    protected EntityManagerInterface $em;
-
-    protected LoggerInterface $logger;
-
-    protected Scheduler $scheduler;
-
-    protected Entity\Repository\StationPlaylistMediaRepository $spmRepo;
-
-    protected Entity\Repository\StationRequestRepository $requestRepo;
-
-    protected Entity\Repository\StationQueueRepository $queueRepo;
-
-    protected Entity\Repository\SongHistoryRepository $historyRepo;
-
-    protected CacheInterface $cache;
-
     public function __construct(
-        EntityManagerInterface $em,
-        LoggerInterface $logger,
-        Scheduler $scheduler,
-        CacheInterface $cache,
-        Entity\Repository\StationPlaylistMediaRepository $spmRepo,
-        Entity\Repository\StationRequestRepository $requestRepo,
-        Entity\Repository\StationQueueRepository $queueRepo,
-        Entity\Repository\SongHistoryRepository $historyRepo
+        protected EntityManagerInterface $em,
+        protected LoggerInterface $logger,
+        protected Scheduler $scheduler,
+        protected CacheInterface $cache,
+        protected Entity\Repository\StationPlaylistMediaRepository $spmRepo,
+        protected Entity\Repository\StationRequestRepository $requestRepo,
+        protected Entity\Repository\StationQueueRepository $queueRepo,
+        protected Entity\Repository\SongHistoryRepository $historyRepo
     ) {
-        $this->em = $em;
-        $this->logger = $logger;
-        $this->scheduler = $scheduler;
-        $this->cache = $cache;
-
-        $this->spmRepo = $spmRepo;
-        $this->requestRepo = $requestRepo;
-        $this->queueRepo = $queueRepo;
-        $this->historyRepo = $historyRepo;
     }
 
     /**
@@ -240,7 +215,7 @@ class Queue implements EventSubscriberInterface
 
         array_walk(
             $new,
-            function (&$value, $key) use ($max): void {
+            static function (&$value, $key) use ($max): void {
                 $value = (mt_rand() * $max) ** (1.0 / $value);
             }
         );
@@ -249,7 +224,7 @@ class Queue implements EventSubscriberInterface
 
         array_walk(
             $new,
-            function (&$value, $key) use ($original): void {
+            static function (&$value, $key) use ($original): void {
                 $value = $original[$key];
             }
         );
@@ -301,28 +276,20 @@ class Queue implements EventSubscriberInterface
             return $this->getSongFromRemotePlaylist($playlist, $now);
         }
 
-        switch ($playlist->getOrder()) {
-            case Entity\StationPlaylist::ORDER_RANDOM:
-                $validTrack = $this->getRandomMediaIdFromPlaylist(
-                    $playlist,
-                    $recentSongHistory,
-                    $allowDuplicates
-                );
-                break;
-
-            case Entity\StationPlaylist::ORDER_SEQUENTIAL:
-                $validTrack = $this->getSequentialMediaIdFromPlaylist($playlist);
-                break;
-
-            case Entity\StationPlaylist::ORDER_SHUFFLE:
-            default:
-                $validTrack = $this->getShuffledMediaIdFromPlaylist(
-                    $playlist,
-                    $recentSongHistory,
-                    $allowDuplicates
-                );
-                break;
-        }
+        $validTrack = match ($playlist->getOrder()) {
+            $playlist::ORDER_RANDOM => $this->getRandomMediaIdFromPlaylist(
+                $playlist,
+                $recentSongHistory,
+                $allowDuplicates
+            ),
+            $playlist::ORDER_SEQUENTIAL => $this->getSequentialMediaIdFromPlaylist($playlist),
+            $playlist::ORDER_SHUFFLE => $this->getShuffledMediaIdFromPlaylist(
+                $playlist,
+                $recentSongHistory,
+                $allowDuplicates
+            ),
+            default => null
+        };
 
         if (null === $validTrack) {
             $this->logger->warning(
@@ -411,7 +378,7 @@ class Queue implements EventSubscriberInterface
         // Handle a remote playlist containing songs or streams.
         $queueCacheKey = 'playlist_queue.' . $playlist->getId();
 
-        $mediaQueue = $this->cache->get($queueCacheKey, null);
+        $mediaQueue = $this->cache->get($queueCacheKey);
         if (empty($mediaQueue)) {
             $playlistRaw = file_get_contents($playlist->getRemoteUrl());
             $mediaQueue = PlaylistParser::getSongs($playlistRaw);
