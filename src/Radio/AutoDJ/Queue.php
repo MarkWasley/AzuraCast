@@ -488,11 +488,12 @@ class Queue implements EventSubscriberInterface
 
         if (null !== $validTrack) {
             $this->logger->info(
-                'Found track that avoids duplicate title and artist.',
+                'Found track that avoids duplicate title, artist and composition.',
                 [
                     'media_id' => $validTrack->media_id,
                     'title' => $validTrack->title,
                     'artist' => $validTrack->artist,
+                    'original_artist' => $validTrack->original_artist,
                 ]
             );
 

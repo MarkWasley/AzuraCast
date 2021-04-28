@@ -36,6 +36,14 @@ class Song implements ResolvableUrlInterface
     public string $artist = '';
 
     /**
+     * The song original artist.
+     *
+     * @OA\Property(example="Chet Porter")
+     * @var string
+     */
+    public string $original_artist = '';
+
+    /**
      * The song title.
      *
      * @OA\Property(example="Aluko River")

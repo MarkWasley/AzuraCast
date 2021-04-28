@@ -214,6 +214,15 @@ class StationMedia implements SongInterface, ProcessableMediaInterface, PathAwar
     protected $playlists;
 
     /**
+     * @ORM\Column(name="original_artist", type="string", length=150, nullable=true)
+     *
+     * @OA\Property(example="Chet Porter")
+     *
+     * @var string|null The original artist of the media file.
+     */
+    protected $original_artist;
+
+    /**
      * @ORM\OneToMany(targetEntity="StationMediaCustomField", mappedBy="media")
      *
      * @var Collection
@@ -458,6 +467,16 @@ class StationMedia implements SongInterface, ProcessableMediaInterface, PathAwar
     public function setArtUpdatedAt(int $art_updated_at): void
     {
         $this->art_updated_at = $art_updated_at;
+    }
+
+    public function getOriginalArtist(): ?string
+    {
+        return $this->original_artist;
+    }
+
+    public function setOriginalArtist(?string $original_artist = null): void
+    {
+        $this->original_artist = $this->truncateString($original_artist, 150);
     }
 
     public function getCustomFields(): Collection

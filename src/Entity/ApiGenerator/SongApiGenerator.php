@@ -52,6 +52,7 @@ class SongApiGenerator
             $response->album = (string)$song->getAlbum();
             $response->genre = (string)$song->getGenre();
             $response->lyrics = (string)$song->getLyrics();
+            $response->original_artist = (string)$song->getOriginalArtist();
 
             $response->custom_fields = $this->getCustomFields($song->getId());
         } else {
