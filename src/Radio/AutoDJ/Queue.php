@@ -585,13 +585,10 @@ class Queue implements EventSubscriberInterface
         $dividerString = chr(7);
 
         $artists = [];
-        $titles = [];
         $latestSongIdsPlayed = [];
+        $playedTracksWithinDuplicatePrevention = [];
 
         foreach ($playedTracks as $playedTrack) {
-            $title = trim($playedTrack['title']);
-            $titles[$title] = $title;
-
             $artistParts = explode(
                 $dividerString,
                 str_replace($artistSeparators, $dividerString, $playedTrack['artist'])
@@ -608,16 +605,32 @@ class Queue implements EventSubscriberInterface
             if (!isset($latestSongIdsPlayed[$songId])) {
                 $latestSongIdsPlayed[$songId] = $playedTrack['timestamp_cued'];
             }
+            $playedTracksWithinDuplicatePrevention[$songId]['title'] = trim($playedTrack['title']);
+            $playedTracksWithinDuplicatePrevention[$songId]['artist'] = trim($playedTrack['artist']);
+            $playedTracksWithinDuplicatePrevention[$songId]['original_artist'] = trim($playedTrack['original_artist']);
         }
 
         /** @var Entity\Api\StationPlaylistQueue[] $eligibleTracksWithoutSameTitle */
         $eligibleTracksWithoutSameTitle = [];
+        $notDifferentComposition = false;
 
         foreach ($eligibleTracks as $track) {
-            // Avoid all direct title matches.
-            $title = trim($track->title);
+            // Avoid all direct title matches, if the composition isn't different
+            foreach ($playedTracksWithinDuplicatePrevention as $songId => $playedTrack) {
+                if ($track->title == $playedTrack['title']) {
 
-            if (isset($titles[$title])) {
+                    // Avoid tracks with the same original artist
+                    if ($track->original_artist == $playedTrack['original_artist']) {
+                        $notDifferentComposition = true;
+                        break;
+                    }
+
+                    break;
+                }
+            }
+
+            if ($notDifferentComposition) {
+                $notDifferentComposition = false;
                 continue;
             }
 
