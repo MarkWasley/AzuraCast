@@ -52,10 +52,6 @@ class StationSchedule
     #[ORM\Column(length: 50, nullable: true)]
     protected ?string $days = null;
 
-    /** @OA\Property(example=false) */
-    #[ORM\Column]
-    protected bool $loop_once = false;
-
     public function __construct(StationPlaylist|StationStreamer $relation)
     {
         if ($relation instanceof StationPlaylist) {
@@ -155,16 +151,6 @@ class StationSchedule
     public function setDays($days): void
     {
         $this->days = implode(',', (array)$days);
-    }
-
-    public function getLoopOnce(): bool
-    {
-        return $this->loop_once;
-    }
-
-    public function setLoopOnce(bool $loop_once): void
-    {
-        $this->loop_once = $loop_once;
     }
 
     public function __toString(): string
